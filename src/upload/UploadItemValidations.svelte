@@ -1,24 +1,23 @@
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
-  import { key } from "./uploadContext";
+  import { createEventDispatcher } from "svelte";
   import UploadItemValidation from "./UploadItemValidation.svelte";
 
   const dispatch = createEventDispatcher();
-  const { filesProps } = getContext(key);
 
   export let file;
+  export let fileProps;
 
   function onValidate(event) {
     const { index, result } = event.detail;
-    const _filesProps = { ...$filesProps };
-    const validations = _filesProps[file.name].validations;
+    const _fileProps = { ...fileProps };
+    const validations = _fileProps.validations;
 
     validations[index] = {
       ...validations[index],
       result,
     };
 
-    $filesProps = _filesProps;
+    fileProps = _fileProps;
     dispatch("validate", { file, result });
 
     const finishValidations =
@@ -30,7 +29,7 @@
   }
 </script>
 
-{#each $filesProps[file.name].validations as validation, i (validation)}
+{#each fileProps.validations as validation, i (validation)}
   <td class="text-center">
     <UploadItemValidation
       {file}

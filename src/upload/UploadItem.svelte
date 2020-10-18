@@ -1,14 +1,11 @@
 <script>
-  import { createEventDispatcher, getContext } from "svelte";
-  import { key } from "./uploadContext";
   import api from "../api";
   import ProgressBar from "../progressBar/ProgressBar.svelte";
   import UploadItemValidations from "./UploadItemValidations.svelte";
 
-  const dispatch = createEventDispatcher();
-  const { filesProps } = getContext(key);
-
   export let file;
+  export let fileProps;
+
   let progress = 0;
   let uploading = false;
 
@@ -18,43 +15,41 @@
     });
   }
 
+  function canUpload() {
+    return (
+      !fileProps.error &&
+      fileProps.validations.filter((o) => o.result.type !== "error").length ===
+        fileProps.validations.length
+    );
+  }
+
   async function onUpload() {
-    let _filesProps = { ...$filesProps };
-    const canUpload =
-      !_filesProps[file.name].error &&
-      _filesProps[file.name].validations.filter(
-        (o) => o.result.type !== "error"
-      ).length === _filesProps[file.name].validations.length;
+    const _fileProps = { ...fileProps };
+    _fileProps.clientValidated = true;
 
-    _filesProps[file.name].clientValidated = true;
-
-    if (canUpload) {
+    if (canUpload()) {
       progress = 0;
       uploading = true;
 
       try {
         const data = await upload();
-        _filesProps[file.name].uploaded = true;
-        _filesProps[file.name].nome = data.Dados[file.name].File;
-        _filesProps[file.name].validations = mergeValidations(
+        _fileProps.uploaded = true;
+        _fileProps.nome = data.Dados[file.name].File;
+        _fileProps.validations = mergeValidations(
           data.Dados[file.name].Validations,
-          _filesProps[file.name].validations
+          _fileProps.validations
         );
       } catch (err) {
-        _filesProps[file.name].error = true;
-        _filesProps[file.name].exception = err;
+        _fileProps.error = true;
+        _fileProps.exception = err;
         //todo: add error when upload fails
       } finally {
         uploading = false;
       }
     } else {
-      _filesProps[file.name].error = true;
+      _fileProps.error = true;
     }
-    $filesProps = _filesProps;
-  }
-
-  function onValidate(event) {
-    dispatch("validate", event.detail);
+    fileProps = _fileProps;
   }
 
   function mergeValidations(clientValidations, serverValidations) {
@@ -74,24 +69,21 @@
 
 <tr>
   <td>
-    <slot name="detail" {file} />
+    <slot name="detail" {file} {fileProps} />
   </td>
   {#if uploading}
-    <td colspan={$filesProps[file.name].validations.length}>
+    <td colspan={fileProps.validations.length}>
       <ProgressBar {progress} />
     </td>
-  {:else if $filesProps[file.name].validate}
-    <UploadItemValidations
-      {file}
-      on:validate={onValidate}
-      on:upload={onUpload} />
+  {:else if fileProps.validate}
+    <UploadItemValidations {file} {fileProps} on:upload={onUpload} />
   {:else}
     <td
-      colspan={$filesProps[file.name].validations.length}
+      colspan={fileProps.validations.length}
       style="color:red;"
       class="text-center">
       Arquivo não processado, limite maximo de arquivos atingido.
     </td>
   {/if}
-  <slot name="action" {file} />
+  <slot name="action" {file} {fileProps} />
 </tr>
